@@ -1,0 +1,769 @@
+{
+  "uid": "mcp-gateway-overview",
+  "title": "MCP Gateway \u2014 Usage & Traces",
+  "tags": [
+    "mcp",
+    "gateway"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 10,
+  "refresh": "10s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "user",
+        "label": "User",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(mcp_client_operation_duration_milliseconds_count{user_id!=\"\"}, user_id)",
+        "includeAll": true,
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "client_type",
+        "label": "Client type",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(mcp_client_operation_duration_milliseconds_count{gateway_client_type!=\"\"}, gateway_client_type)",
+        "includeAll": true,
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Total tool calls",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(mcp_client_operation_duration_milliseconds_count{gen_ai_tool_name!=\"\", user_id=~\"$user\"}) or vector(0)",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "description": "Counted exactly, cumulative since the gateway process started, so it resets when the gateway restarts. Not affected by the time range picker."
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Distinct users",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count(count by (user_id) (mcp_client_operation_duration_milliseconds_count{user_id!=\"\"})) or vector(0)",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "description": "Counted exactly, cumulative since the gateway process started, so it resets when the gateway restarts. Not affected by the time range picker."
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Distinct tools",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count(count by (gen_ai_tool_name) (mcp_client_operation_duration_milliseconds_count{gen_ai_tool_name!=\"\"})) or vector(0)",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "description": "Counted exactly, cumulative since the gateway process started, so it resets when the gateway restarts. Not affected by the time range picker."
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "JSON-RPC errors",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(mcp_client_operation_duration_milliseconds_count{error_type!=\"\"}) or vector(0)",
+          "instant": true
+        }
+      ],
+      "description": "Counted exactly, cumulative since the gateway process started, so it resets when the gateway restarts. Not affected by the time range picker."
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Tool calls / sec by tool",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{gen_ai_tool_name}}",
+          "expr": "sum by (gen_ai_tool_name) (rate(mcp_client_operation_duration_milliseconds_count{gen_ai_tool_name!=\"\", user_id=~\"$user\"}[$__rate_interval]))"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "p95 latency (ms) by tool",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{gen_ai_tool_name}}",
+          "expr": "histogram_quantile(0.95, sum by (le, gen_ai_tool_name) (rate(mcp_client_operation_duration_milliseconds_bucket{gen_ai_tool_name!=\"\", user_id=~\"$user\"}[$__rate_interval])))"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Calls by user / server / tool / provider",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "instant": true,
+          "expr": "sum by (user_id, gateway_mcp_server_name, gen_ai_tool_name, gateway_oauth_provider) (mcp_client_operation_duration_milliseconds_count{gen_ai_tool_name!=\"\", user_id=~\"$user\"})"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "description": "Counted exactly, cumulative since the gateway process started, so it resets when the gateway restarts. Not affected by the time range picker."
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "Recent traces (Tempo)",
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "queryType": "traceql",
+          "query": "{ resource.service.name = \"mcp-gateway\" }",
+          "tableType": "traces",
+          "limit": 50
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Tool calls / sec by client type (agent vs coding assistant)",
+      "description": "Splits traffic using the gateway.client_type attribute set from the x-mcp-client-type request header. The JFrog LangGraph agent sends 'agent'; interactive tools that omit the header show as 'unset'.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 20
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{gateway_client_type}}",
+          "expr": "sum by (gateway_client_type) (rate(mcp_client_operation_duration_milliseconds_count{gen_ai_tool_name!=\"\", user_id=~\"$user\", gateway_client_type=~\"$client_type\"}[$__rate_interval]))"
+        },
+        {
+          "refId": "B",
+          "legendFormat": "unset",
+          "expr": "sum(rate(mcp_client_operation_duration_milliseconds_count{gen_ai_tool_name!=\"\", user_id=~\"$user\", gateway_client_type=\"\"}[$__rate_interval]))"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "Calls by user / client type / tool",
+      "description": "Attributes each tool call to a human (user_id) AND a client class (gateway.client_type). Lets you confirm whether a given user's requests came from the JFrog agent or a coding assistant. Counted exactly, cumulative since the gateway process started, so it resets when the gateway restarts. Not affected by the time range picker.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 20
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "instant": true,
+          "expr": "sum by (user_id, gateway_client_type, gateway_mcp_server_name, gen_ai_tool_name) (mcp_client_operation_duration_milliseconds_count{gen_ai_tool_name!=\"\", user_id=~\"$user\"})"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 100,
+      "type": "row",
+      "title": "Security & access control",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 28
+      },
+      "panels": []
+    },
+    {
+      "id": 101,
+      "type": "stat",
+      "title": "Rejected requests",
+      "description": "Every request the gateway refused before it reached an upstream MCP server. Not filtered by the $user variable: a rejected request has no verified identity, so most denials here are necessarily anonymous. Counted exactly, cumulative since the gateway process started, so it resets when the gateway restarts. Not affected by the time range picker.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 29
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(mcp_gateway_rejected_requests_total) or vector(0)",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "type": "stat",
+      "title": "Unauthorized (401)",
+      "description": "No bearer token presented, or a token the gateway could not verify (bad signature, expired, or issued for another namespace). Counted exactly, cumulative since the gateway process started, so it resets when the gateway restarts. Not affected by the time range picker.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 29
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(mcp_gateway_rejected_requests_total{gateway_rejection_reason=~\"missing_token|invalid_token\"}) or vector(0)",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 103,
+      "type": "stat",
+      "title": "Rate-limited",
+      "description": "Authenticated users blocked by a server-wide or per-tool rate limit. Stays at zero unless rate_limiting is enabled in the gateway config.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 29
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(mcp_gateway_rejected_requests_total{gateway_rejection_reason=~\"rate_limited_.*\"}) or vector(0)",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 104,
+      "type": "stat",
+      "title": "Unknown namespace probes",
+      "description": "Requests addressed to an MCP server that does not exist on this gateway \u2014 the signature of scanning or a misconfigured client.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 29
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(mcp_gateway_rejected_requests_total{gateway_rejection_reason=\"unknown_namespace\"}) or vector(0)",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 105,
+      "type": "timeseries",
+      "title": "Rejections / sec by reason",
+      "description": "Rate of refusals by cause. A sustained rise in invalid_token or unknown_namespace is the interesting signal. Not filtered by the $user variable: a rejected request has no verified identity, so most denials here are necessarily anonymous.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 33
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "auto"
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (gateway_rejection_reason) (rate(mcp_gateway_rejected_requests_total[$__rate_interval]))",
+          "legendFormat": "{{gateway_rejection_reason}}"
+        }
+      ]
+    },
+    {
+      "id": 106,
+      "type": "table",
+      "title": "Rejections by reason / server / client",
+      "description": "Which caller is being turned away, from which MCP server. client type 'rejection-demo' is synthetic traffic from scripts/generate-rejections.sh.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 33
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (gateway_rejection_reason, gateway_mcp_server_name, gateway_client_type, gateway_oauth_provider) (mcp_gateway_rejected_requests_total)",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 107,
+      "type": "table",
+      "title": "Failed tool calls by OAuth provider",
+      "description": "Calls that reached the upstream server and came back an error, attributed to the OAuth provider that authorized them. Rows with an empty tool name are protocol-level failures, not tool failures.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 41
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (gateway_oauth_provider, gen_ai_tool_name, error_type, rpc_response_status_code, user_id) (mcp_client_operation_duration_milliseconds_count{error_type!=\"\"})",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 108,
+      "type": "table",
+      "title": "Rate-limited users and tools",
+      "description": "Who is hitting limits, and on which tool. Identity is available here because a rate limit is only applied after the token is verified.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 41
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (user_id, gen_ai_tool_name, gateway_mcp_server_name) (mcp_gateway_rejected_requests_total{gateway_rejection_reason=~\"rate_limited_.*\"})",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

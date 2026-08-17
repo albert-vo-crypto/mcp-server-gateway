@@ -1,0 +1,4 @@
+# mcp 2.x reorganised the package and dropped mcp.server.fastmcp, which this
+# server imports. Keep the upper bound until the server is ported to the 2.x API.
+mcp[server]>=1.0.0,<2.0.0
+httpx>=0.27.0

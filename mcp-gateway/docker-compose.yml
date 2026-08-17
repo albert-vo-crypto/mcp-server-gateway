@@ -1,0 +1,148 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: mcp-gateway-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  artifactory-mcp:
+    build:
+      context: ../artifactory
+      dockerfile: Dockerfile
+    container_name: artifactory-mcp-server
+    environment:
+      ARTIFACTORY_BASE_URL: ${ARTIFACTORY_BASE_URL:-http://host.docker.internal:8081/artifactory}
+      # --- Open mode (shared token) ---
+      # Preferred: JFrog access/identity token (company or free-tier), sent as Bearer.
+      ARTIFACTORY_ACCESS_TOKEN: ${ARTIFACTORY_ACCESS_TOKEN:-}
+      # Legacy fallback for older self-hosted API keys only.
+      ARTIFACTORY_API_KEY: ${ARTIFACTORY_API_KEY:-}
+      # --- Secure mode (per-user OAuth) ---
+      # When set, the server exchanges each user's forwarded OIDC id_token for a
+      # scoped JFrog token via /access/api/v1/oidc/token instead of the shared token.
+      ARTIFACTORY_OIDC_PROVIDER_NAME: ${ARTIFACTORY_OIDC_PROVIDER_NAME:-}
+      HOST: 0.0.0.0
+      PORT: 8091
+      MCP_DISABLE_DNS_REBINDING: "true"
+      # Corporate TLS-inspecting proxies (Zscaler, Netskope, etc.) re-sign
+      # upstream certificates with a private root the container does not trust,
+      # which surfaces as SSL: CERTIFICATE_VERIFY_FAILED. Point this at a bundle
+      # containing the public roots PLUS the corporate root, built by
+      # certs/build-ca-bundle.sh. Leave unset when there is no proxy.
+      #
+      # Deliberately NOT named SSL_CERT_FILE on the host side: Compose resolves
+      # ${VAR} from the shell before .env, and macOS dev machines often already
+      # export SSL_CERT_FILE with a host-only path that does not exist here.
+      SSL_CERT_FILE: ${ARTIFACTORY_MCP_CA_BUNDLE:-}
+      # Corporate roots often fail Python 3.13's default strict RFC 5280 checks.
+      # Relaxes only those conformance checks — chain, expiry and hostname
+      # verification stay on.
+      ARTIFACTORY_TLS_RELAX_STRICT: ${ARTIFACTORY_TLS_RELAX_STRICT:-}
+    volumes:
+      - ./certs:/certs:ro
+    ports:
+      - "8091:8091"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8091/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  github-mcp:
+    build:
+      context: ../github
+      dockerfile: Dockerfile
+    container_name: github-mcp-server
+    environment:
+      GITHUB_API_URL: https://api.github.com
+      GITHUB_SECURE_MODE: "true"
+      GITHUB_ALLOWED_USERS: ${GITHUB_ALLOWED_USERS:-}
+      PORT: 8080
+    # Internal only — clients must go through the OAuth-protected gateway.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  gdrive-mcp:
+    build:
+      context: ../gdrive
+      dockerfile: Dockerfile
+    container_name: gdrive-mcp-server
+    environment:
+      # --- Open mode (shared credential) ---
+      GOOGLE_ACCESS_TOKEN: ${GOOGLE_ACCESS_TOKEN:-}
+      GOOGLE_SERVICE_ACCOUNT_FILE: ${GOOGLE_SERVICE_ACCOUNT_FILE:-}
+      GOOGLE_IMPERSONATE_SUBJECT: ${GOOGLE_IMPERSONATE_SUBJECT:-}
+      # --- Secure mode (per-user OAuth) ---
+      # When true, the gateway forwards the user's Google access_token and the
+      # server acts as that user. Enable this in secure mode.
+      GDRIVE_SECURE_MODE: ${GDRIVE_SECURE_MODE:-}
+      HOST: 0.0.0.0
+      PORT: 8092
+      MCP_DISABLE_DNS_REBINDING: "true"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Internal only — clients go through the OAuth-protected gateway.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8092/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-gateway
+    ports:
+      - "8090:8090"
+    # Mount configs so edits apply on `docker compose up -d gateway` (no rebuild).
+    volumes:
+      - ./configs:/app/configs:ro
+    environment:
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY}
+      MCP_GATEWAY_CONFIG_FILE: ./configs/local.yml
+      # Public origin clients use to reach the gateway. Defaults to localhost for
+      # open-mode; set to your https tunnel URL for OAuth clients (Cursor/Claude).
+      GATEWAY_BASE_URL: ${GATEWAY_BASE_URL:-http://localhost:8090}
+      # Toggle secure (per-user OAuth) mode by pointing these at the secure-* files.
+      # Leave unset for the default open (shared-token) mode.
+      OAUTH_CONFIG_FILE: ${OAUTH_CONFIG_FILE:-./configs/local-oauth-config.yml}
+      MCP_CONFIG_FILE: ${MCP_CONFIG_FILE:-./configs/local-mcp-config.yml}
+      # Google OAuth client (only needed in secure mode)
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:-}
+      GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:-}
+      # OpenTelemetry: when set (e.g. http://otel-collector:4318), the gateway
+      # exports traces + metrics to that OTLP collector instead of the console.
+      # Bring up the stack in ./monitoring to populate Grafana. Leave empty to
+      # keep the default local console exporter.
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+      artifactory-mcp:
+        condition: service_healthy
+      github-mcp:
+        condition: service_healthy
+      gdrive-mcp:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8090/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s

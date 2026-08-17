@@ -1,0 +1,40 @@
+# MCP backends for "secure" mode (Docker network hostnames).
+#
+# The artifactory server requires per-user OAuth: the gateway will not forward
+# a request until the user has logged in via Google and approved the consent
+# screen. This is the config used for the end-to-end auth + consent demo.
+#
+# Two levels of "secure":
+#
+# 1. Gateway OAuth only (this file as-is): the user must log in + consent at the
+#    gateway before any tool runs. The upstream data call still uses the shared
+#    JFrog token configured on the artifactory-mcp container. Works with only a
+#    Google OAuth client.
+#
+# 2. True per-user (uncomment forward_id_token below AND set
+#    ARTIFACTORY_OIDC_PROVIDER_NAME on the artifactory-mcp container): the
+#    gateway forwards the user's Google id_token, which the server exchanges for
+#    a user-scoped JFrog token. Requires a JFrog OIDC integration + identity
+#    mapping. JFrog then enforces each user's own permissions.
+
+artifactory:
+  name: artifactory
+  description: JFrog Artifactory MCP server (per-user OAuth)
+  endpoint: http://artifactory-mcp:8091/mcp
+  auth_provider: google
+  forward_id_token: true
+
+github:
+  name: github
+  description: GitHub MCP server (per-user OAuth)
+  endpoint: http://github-mcp:8080/mcp
+  auth_provider: github
+  # Gateway forwards the user's GitHub OAuth access_token (not id_token).
+
+gdrive:
+  name: gdrive
+  description: Google Drive + Docs MCP server (per-user OAuth)
+  endpoint: http://gdrive-mcp:8092/mcp
+  auth_provider: google-drive
+  # Gateway forwards the user's Google OAuth access_token (not id_token); the
+  # server calls the Drive/Docs APIs directly as that user.

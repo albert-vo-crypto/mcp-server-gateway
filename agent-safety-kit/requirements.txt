@@ -1,0 +1,4 @@
+# Runtime: stdlib only. No required third-party packages.
+# Optional:
+#   pip install -e ".[dev]"          # pytest
+#   pip install -e ".[langchain]"    # LangChain message adapters

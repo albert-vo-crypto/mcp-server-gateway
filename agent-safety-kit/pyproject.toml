@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-safety-kit"
+version = "1.0.0"
+description = "Pre-LLM secret/PII input guard + post-write PII scanner for any agent framework"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Agent Safety Kit Contributors" }]
+keywords = ["agents", "llm", "pii", "secrets", "safety", "guardrails"]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0"]
+langchain = ["langchain-core>=0.3.0"]
+
+[project.scripts]
+agent-safety-scan = "agent_safety.pii_scanner.entrypoint:main"
+
+[tool.setuptools.packages.find]
+include = ["agent_safety*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

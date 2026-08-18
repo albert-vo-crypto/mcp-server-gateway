@@ -1,6 +1,10 @@
 services:
   jfrog-copilot:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      additional_contexts:
+        kit: ../../agent-safety-kit
     container_name: jfrog-copilot
     ports:
       - "8501:8501"   # Streamlit UI  -> http://localhost:8501

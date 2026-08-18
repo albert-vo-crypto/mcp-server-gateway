@@ -84,6 +84,7 @@ Layout:
 cd Agents/jfrog-agent
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+pip install -e ../../agent-safety-kit   # Chapter 15: pre-LLM secret/PII guard
 cp .env.example .env       # then edit as needed
 ```
 
@@ -251,6 +252,11 @@ checkpoint **resumes across a simulated restart** for the selected backend.
 - **Human-in-the-loop.** Sensitive/destructive operations trigger a LangGraph
   `interrupt()` with a structured approval payload; the graph persists and
   resumes only on explicit approval.
+- **Pre-LLM input guard.** `jfrog_agent/llm.py` calls `guard_messages` from
+  `agent-safety-kit` **before** the context optimizer and every `llm.invoke`.
+  High-severity secrets hard-block the run; emails and similar PII are replaced
+  with typed tokens such as `[REDACTED_EMAIL]`. This is separate from audit
+  redaction (which runs on persist).
 - **Secrets redaction + immutable audit.** Tokens are stripped from logs, traces
   and the audit trail; each run is recorded with requester, plan, decisions and
   results.

@@ -9,12 +9,17 @@ the validated builder and typed tools can execute safely.
 from __future__ import annotations
 
 import json
+import logging
 import re
+import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Literal
 
 from .settings import Settings, settings as default_settings
 from .tools.aql import SearchIntent
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -32,6 +37,48 @@ class Plan:
     actions: list[PlannedAction] = field(default_factory=list)
     # repositories the whole plan touches (for scope authorization)
     repositories: list[str] = field(default_factory=list)
+
+
+class InputGuardBlocked(ValueError):
+    """Raised when the pre-LLM input guard hard-blocks a prompt. Do not call the model."""
+
+
+def _ensure_agent_safety_on_path() -> None:
+    """Prefer an installed kit; else load sibling ``agent-safety-kit`` from this repo."""
+    try:
+        import agent_safety  # noqa: F401
+
+        return
+    except ImportError:
+        pass
+    # llm.py lives at Agents/jfrog-agent/jfrog_agent/llm.py → repo root is parents[3]
+    kit = Path(__file__).resolve().parents[3] / "agent-safety-kit"
+    if kit.is_dir():
+        kit_str = str(kit)
+        if kit_str not in sys.path:
+            sys.path.insert(0, kit_str)
+
+
+def _guard_before_llm(messages: list[Any]) -> list[Any]:
+    """Block secrets / redact PII before the context optimizer and ``llm.invoke``.
+
+    Matches Chapter 15: ``guard_messages`` runs first; a hard block must not
+    fall through to the model (or to the heuristic planner via a bare except).
+    """
+    try:
+        _ensure_agent_safety_on_path()
+        from agent_safety import guard_messages
+    except ImportError:
+        logger.warning(
+            "agent-safety-kit is not installed; skipping pre-LLM input guard. "
+            "Install with: pip install -e ../../agent-safety-kit"
+        )
+        return messages
+
+    cleaned, guard = guard_messages(messages)
+    if guard.blocked:
+        raise InputGuardBlocked(guard.block_reason or "Blocked by input guard")
+    return cleaned
 
 
 _PLANNER_SYSTEM = """You are the planning brain of a JFrog Artifactory operations copilot.
@@ -204,6 +251,7 @@ def make_plan(request: str, settings: Settings = default_settings) -> tuple[Plan
                 SystemMessage(content=_PLANNER_SYSTEM),
                 HumanMessage(content=request),
             ]
+            messages = _guard_before_llm(messages)
             messages = apply_context_optimizer(messages, task=request, purpose="plan")
             with telemetry.timed() as elapsed:
                 resp = chat.invoke(messages)
@@ -215,6 +263,8 @@ def make_plan(request: str, settings: Settings = default_settings) -> tuple[Plan
                         if a.search_intent:
                             plan.repositories.extend(a.search_intent.repositories)
                 return plan, "llm"
+        except InputGuardBlocked:
+            raise
         except Exception:
             pass
     return heuristic_plan(request), "heuristic"
@@ -242,11 +292,14 @@ def summarize(request: str, findings: list[dict[str, Any]], settings: Settings =
                 HumanMessage(content=f"Request: {request}"),
                 HumanMessage(content=f"Findings (JSON):\n{findings_json}"),
             ]
+            messages = _guard_before_llm(messages)
             messages = apply_context_optimizer(messages, task=request, purpose="summarize")
             with telemetry.timed() as elapsed:
                 resp = chat.invoke(messages)
             telemetry.record_llm_call("summarize", settings.llm_provider, settings.llm_model, resp, elapsed())
             return resp.content if isinstance(resp.content, str) else str(resp.content)
+        except InputGuardBlocked as exc:
+            return str(exc)
         except Exception:
             pass
     # deterministic fallback summary

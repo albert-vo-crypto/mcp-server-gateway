@@ -29,6 +29,10 @@ google-cloud-bigquery>=3.25.0
 # Context optimizer token counting
 tiktoken>=0.7.0
 
+# Pre-LLM secret/PII guard (Chapter 15). Sibling package at ../../agent-safety-kit.
+# Install after this file (Docker copies the kit separately):
+#   pip install -e ../../agent-safety-kit
+
 # Observability (optional; enabled when JFROG_AGENT_OTEL_ENDPOINT is set)
 opentelemetry-sdk>=1.27.0
 opentelemetry-exporter-otlp-proto-http>=1.27.0

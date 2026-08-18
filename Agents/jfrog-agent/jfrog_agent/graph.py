@@ -33,7 +33,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
 from .audit_log import AuditTrail
-from .llm import Plan, PlannedAction, make_plan, summarize
+from .llm import InputGuardBlocked, Plan, PlannedAction, make_plan, summarize
 from .mcp_client import GatewayMCPClient, MCPError
 from .security import Authorizer
 from .settings import Settings, settings as default_settings
@@ -53,7 +53,16 @@ def build_graph(
 
     # ── interpret ────────────────────────────────────────────────────────────
     def interpret(state: AgentState) -> dict[str, Any]:
-        plan, kind = make_plan(state["request"], settings)
+        try:
+            plan, kind = make_plan(state["request"], settings)
+        except InputGuardBlocked as exc:
+            reason = str(exc)
+            audit.record("interpret", {"planner": "blocked", "reason": reason})
+            return {
+                "plan": Plan(request_type="unknown", summary=reason, actions=[]),
+                "planner_kind": "blocked",
+                "request_type": "unknown",
+            }
         audit.record("interpret", {"planner": kind, "summary": plan.summary, "actions": [a.tool for a in plan.actions]})
         return {"plan": plan, "planner_kind": kind, "request_type": plan.request_type}
 
@@ -73,6 +82,9 @@ def build_graph(
 
     # ── plan (decompose + authorize) ──────────────────────────────────────────
     def plan_node(state: AgentState) -> dict[str, Any]:
+        if state.get("planner_kind") == "blocked":
+            return {"authz_notes": [], "approval_required": False, "approval_payload": None}
+
         plan: Plan = state["plan"]
         notes: list[dict[str, Any]] = []
         approval_required = False
@@ -180,7 +192,10 @@ def build_graph(
         notes = state.get("authz_notes", [])
         denials = [n for n in notes if not n.get("allowed")]
 
-        if state.get("approval_decision") == "reject":
+        if state.get("planner_kind") == "blocked":
+            outcome = "denied"
+            answer = state["plan"].summary if state.get("plan") else "Blocked by input guard."
+        elif state.get("approval_decision") == "reject":
             outcome = "rejected"
             answer = "The requested operation was rejected at the approval step. No changes were made."
         elif not findings and denials:

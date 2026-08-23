@@ -23,10 +23,13 @@ services:
       # LLM (optional). Falls back to the offline heuristic planner if unset.
       JFROG_AGENT_LLM_PROVIDER: "${JFROG_AGENT_LLM_PROVIDER:-none}"
       JFROG_AGENT_LLM_MODEL: "${JFROG_AGENT_LLM_MODEL:-gpt-4o-mini}"
+      # OpenAI-compatible base URL (e.g. an internal AI gateway). Required
       # when the LLM provider is an OpenAI-compatible endpoint other than OpenAI.
       OPENAI_API_BASE: "${OPENAI_API_BASE:-}"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      # Pre-LLM input guard (Chapter 15). Kit is installed in the image via compose.
+      INPUT_GUARD_ENABLED: "${INPUT_GUARD_ENABLED:-1}"
       # Durable agent memory: "sqlite" (default, in the /data volume) or "spanner".
       JFROG_AGENT_MEMORY_BACKEND: "${JFROG_AGENT_MEMORY_BACKEND:-sqlite}"
       JFROG_AGENT_MEMORY_DB: "/data/memory.db"

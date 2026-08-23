@@ -51,20 +51,19 @@ def _ensure_agent_safety_on_path() -> None:
         return
     except ImportError:
         pass
-    # llm.py lives at Agents/jfrog-agent/jfrog_agent/llm.py → repo root is parents[3]
-    kit = Path(__file__).resolve().parents[3] / "agent-safety-kit"
-    if kit.is_dir():
-        kit_str = str(kit)
-        if kit_str not in sys.path:
-            sys.path.insert(0, kit_str)
+    parents = Path(__file__).resolve().parents
+    # Host monorepo: .../Agents/jfrog-agent/jfrog_agent/llm.py → parents[3] = repo root.
+    # Docker image has /app/jfrog_agent/llm.py (shallower); kit is pip-installed instead.
+    if len(parents) > 3:
+        kit = parents[3] / "agent-safety-kit"
+        if kit.is_dir():
+            kit_str = str(kit)
+            if kit_str not in sys.path:
+                sys.path.insert(0, kit_str)
 
 
 def _guard_before_llm(messages: list[Any]) -> list[Any]:
-    """Block secrets / redact PII before the context optimizer and ``llm.invoke``.
-
-    Matches Chapter 15: ``guard_messages`` runs first; a hard block must not
-    fall through to the model (or to the heuristic planner via a bare except).
-    """
+    """Block secrets / redact PII before the context optimizer and ``llm.invoke``."""
     try:
         _ensure_agent_safety_on_path()
         from agent_safety import guard_messages

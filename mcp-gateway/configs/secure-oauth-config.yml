@@ -37,7 +37,10 @@ google-drive:
 
 github:
   oidc: false
-  issuer: https://github.com
+  # GitHub returns iss=https://github.com/login/oauth (RFC 9207). Must match
+  # exactly or openid-client rejects the callback with:
+  #   unexpected "iss" (issuer) response parameter value
+  issuer: https://github.com/login/oauth
   client_id: ${GITHUB_OAUTH_CLIENT_ID}
   client_secret: ${GITHUB_OAUTH_CLIENT_SECRET}
   auth_url: https://github.com/login/oauth/authorize

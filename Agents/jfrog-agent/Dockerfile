@@ -6,6 +6,14 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
+# Corporate TLS proxies (Zscaler, etc.): Compose may pass `certs` as an
+# additional context. When present, install the merged CA bundle so pip/https
+# works during build and at runtime.
+COPY --from=certs ca-bundle.pem /usr/local/share/ca-certificates/corp-ca-bundle.pem
+ENV SSL_CERT_FILE=/usr/local/share/ca-certificates/corp-ca-bundle.pem \
+    REQUESTS_CA_BUNDLE=/usr/local/share/ca-certificates/corp-ca-bundle.pem \
+    CURL_CA_BUNDLE=/usr/local/share/ca-certificates/corp-ca-bundle.pem
+
 COPY requirements.txt ./
 # agent-safety-kit is outside this build context; compose passes it as `kit`.
 COPY --from=kit . /opt/agent-safety-kit

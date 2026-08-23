@@ -156,7 +156,8 @@ oauth_providers:
   # example: GitHub OAuth App (non-OIDC; manual auth/token URLs)
   github:
     oidc: false
-    issuer: 'https://github.com'
+    # Must match GitHub's RFC 9207 iss value in the auth callback.
+    issuer: 'https://github.com/login/oauth'
     scope: 'read:user'
     auth_url: 'https://github.com/login/oauth/authorize'
     token_url: 'https://github.com/login/oauth/access_token'

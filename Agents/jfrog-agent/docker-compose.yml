@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
       additional_contexts:
         kit: ../../agent-safety-kit
+        certs: ../../mcp-gateway/certs
     container_name: jfrog-copilot
     ports:
       - "8501:8501"   # Streamlit UI  -> http://localhost:8501

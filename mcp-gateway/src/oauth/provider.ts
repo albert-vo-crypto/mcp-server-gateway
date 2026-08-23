@@ -508,9 +508,13 @@ export class Provider {
   }
 
   async #getGithubTokenExpiry(token: string) {
-    // note: we assume here that the configured issuer is the base url of the
-    // GHE instance.
-    const ghUrl = new URL('/api/v3/user', this.#config.issuer)
+    // Issuer may be the RFC 9207 value (https://github.com/login/oauth) or a
+    // GHES base URL. Normalize before building the user endpoint.
+    const issuer = this.#config.issuer.replace(/\/login\/oauth\/?$/, '')
+    const ghUrl =
+      issuer === 'https://github.com'
+        ? new URL('https://api.github.com/user')
+        : new URL('/api/v3/user', issuer.endsWith('/') ? issuer : `${issuer}/`)
     let resp: Response
     try {
       resp = await fetch(ghUrl, {

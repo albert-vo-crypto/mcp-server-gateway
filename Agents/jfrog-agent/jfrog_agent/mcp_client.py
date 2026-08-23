@@ -61,17 +61,31 @@ class _CallbackHandler(BaseHTTPRequestHandler):
     def do_GET(self):  # noqa: N802 (http.server API)
         parsed = urllib.parse.urlparse(self.path)
         params = urllib.parse.parse_qs(parsed.query)
-        _CallbackHandler.code = (params.get("code") or [None])[0]
-        _CallbackHandler.state = (params.get("state") or [None])[0]
+        # Only capture a real authorization code. Probes/health hits without
+        # `code` must not clear a pending wait (class-level state is shared).
+        code = (params.get("code") or [None])[0]
+        state = (params.get("state") or [None])[0]
+        if code:
+            _CallbackHandler.code = code
+            _CallbackHandler.state = state
         self.send_response(200)
         self.send_header("Content-Type", "text/html")
         self.end_headers()
-        self.wfile.write(
-            b"<html><body style='font-family:sans-serif'>"
-            b"<h2>Authentication complete</h2>"
-            b"<p>You can close this tab and return to the JFrog agent.</p>"
-            b"</body></html>"
-        )
+        if code:
+            body = (
+                b"<html><body style='font-family:sans-serif'>"
+                b"<h2>Authentication complete</h2>"
+                b"<p>You can close this tab and return to the JFrog agent.</p>"
+                b"</body></html>"
+            )
+        else:
+            body = (
+                b"<html><body style='font-family:sans-serif'>"
+                b"<h2>Waiting for OAuth redirect</h2>"
+                b"<p>No authorization code on this request.</p>"
+                b"</body></html>"
+            )
+        self.wfile.write(body)
 
     def log_message(self, *_args):  # silence the default logging
         return

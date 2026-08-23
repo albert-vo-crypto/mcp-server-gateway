@@ -7,7 +7,7 @@ This directory contains Kubernetes manifests for deploying the Artifactory MCP S
 - Kubernetes cluster (GKE, EKS, AKS, or any K8s cluster)
 - `kubectl` configured to access your cluster
 - Docker image pushed to a container registry accessible by your cluster
-- Artifactory API credentials
+- Artifactory instance URL and OIDC integration name (secure mode; see Chapter 4)
 
 ## 🚀 Deployment Steps
 
@@ -27,16 +27,18 @@ docker push your-registry/artifactory-mcp-server:v1.0.0
 kubectl apply -f namespace.yaml
 ```
 
-### 3. Create Secret with Artifactory Credentials
+### 3. Create Secret with Artifactory configuration
 
 **Option A: Using kubectl (Recommended for security)**
 
 ```bash
 kubectl create secret generic artifactory-credentials \
   --from-literal=ARTIFACTORY_BASE_URL='https://your-instance.jfrog.io/artifactory' \
-  --from-literal=ARTIFACTORY_ACCESS_TOKEN='your-access-or-identity-token' \
+  --from-literal=ARTIFACTORY_OIDC_PROVIDER_NAME='google-mcp-gateway' \
   --namespace=artifactory-mcp-server
 ```
+
+Production uses **secure mode** (Chapter 4): the gateway forwards each user's OIDC identity token and the server exchanges it for a JFrog token. Do **not** set `ARTIFACTORY_ACCESS_TOKEN` in this Secret; that shared credential is for open-mode local development only.
 
 **Option B: Using YAML file (Less secure)**
 
@@ -151,7 +153,7 @@ kubectl delete namespace artifactory-mcp-server
 2. **Use RBAC** - Limit access to the namespace
 3. **Network Policies** - Restrict traffic to/from the MCP server
 4. **Image Scanning** - Scan your Docker images for vulnerabilities
-5. **Secret Rotation** - Regularly rotate your Artifactory API keys
+5. **Secret rotation** - Rotate gateway OAuth credentials; Artifactory secure mode has no standing server token to rotate
 
 ## 📝 Additional Configuration
 

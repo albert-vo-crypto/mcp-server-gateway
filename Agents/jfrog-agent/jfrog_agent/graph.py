@@ -136,7 +136,7 @@ def build_graph(
                 finding = _run_read_action(client, a, settings)
             except AQLValidationError as e:
                 finding = {"tool": a.tool, "is_error": True, "result": f"blocked by AQL validator: {e}"}
-            except (MCPError, Exception) as e:  # noqa: BLE001 - surface upstream errors as findings
+            except Exception as e:  # noqa: BLE001 - deliberate: never abort the subgraph on tool errors
                 finding = {"tool": a.tool, "is_error": True, "result": f"{type(e).__name__}: {e}"}
             audit.record("tool_call", {"tool": a.tool, "is_error": finding.get("is_error"), "intent": finding.get("intent")})
             findings.append(finding)

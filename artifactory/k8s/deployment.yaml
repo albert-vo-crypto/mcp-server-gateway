@@ -38,11 +38,13 @@ spec:
             secretKeyRef:
               name: artifactory-credentials
               key: ARTIFACTORY_BASE_URL
-        - name: ARTIFACTORY_ACCESS_TOKEN
+        # Secure mode (Chapter 4): per-user OIDC exchange via gateway-forwarded id_token.
+        # Do not mount ARTIFACTORY_ACCESS_TOKEN in production; that is open-mode only.
+        - name: ARTIFACTORY_OIDC_PROVIDER_NAME
           valueFrom:
             secretKeyRef:
               name: artifactory-credentials
-              key: ARTIFACTORY_ACCESS_TOKEN
+              key: ARTIFACTORY_OIDC_PROVIDER_NAME
         
         # Resource limits and requests
         resources:

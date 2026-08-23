@@ -14,7 +14,10 @@ RUN pip install --no-cache-dir -r requirements.txt \
 
 COPY jfrog_agent ./jfrog_agent
 COPY ui ./ui
+COPY scripts ./scripts
 COPY app.py run.py ./
+
+ENV PYTHONPATH=/app
 
 # Streamlit UI + OAuth loopback callback
 EXPOSE 8501 8777
